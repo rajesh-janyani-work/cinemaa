@@ -45,7 +45,7 @@ app.get("/health", (req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 
 // 404 handler
-app.all("*", (req: Request, res: Response) => {
+app.use((req: Request, res: Response) => {
   res.status(404).json({
     status: "error",
     message: `Route ${req.originalUrl} not found`,
