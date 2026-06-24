@@ -8,6 +8,7 @@ import { swaggerRouter } from "./middlewares/swagger.middleware";
 import authRoutes from "./modules/auth/auth.routes";
 import movieRoutes from "./modules/movie/movie.routes";
 import showRoutes from "./modules/show/show.routes";
+import bookingRoutes from "./modules/booking/booking.routes";
 
 
 const app: Application = express();
@@ -46,6 +47,8 @@ app.get("/health", (_req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/shows", showRoutes);
+app.use("/api/bookings", bookingRoutes);
+
 
 
 
