@@ -97,35 +97,6 @@ npm run build
 npm start
 ```
 
-## API Endpoints
-
-### Auth — `/api/auth`
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/register` | — | Register a new user |
-| POST | `/login` | — | Login, get access token + set cookies |
-| GET | `/me` | Bearer token | Get current user profile |
-| POST | `/refresh` | Cookie | Rotate refresh token, issue new access token |
-| POST | `/logout` | Cookie | Logout current device |
-| POST | `/logout-all` | Cookie | Logout all devices |
-
-### Movies — `/api/movies`
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| GET | `/` | — | List all active movies |
-| GET | `/:id` | — | Get a single movie by ID |
-| POST | `/` | Admin only | Create a new movie |
-| PUT | `/:id` | Admin only | Update a movie (partial update) |
-| DELETE | `/:id` | Admin only | Soft delete a movie |
-
-### Health Check
-
-```
-GET /health
-```
-
 ## Security Features
 
 **JWT Tokens**
@@ -165,5 +136,4 @@ npm run type-check   # TypeScript type check without emitting
 ## Swagger UI
 
 Available at `/api-docs` in development mode. Use the Authorize button (top right) to paste your Bearer token after logging in. The login response includes `accessToken` in the response body for easy copying.
-# cinemaa
-# cinemaa
+
