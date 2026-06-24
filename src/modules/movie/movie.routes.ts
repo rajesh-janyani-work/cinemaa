@@ -10,6 +10,19 @@ const router = Router();
  *   get:
  *     tags: [Movies]
  *     summary: Get all active movies
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *         description: Search by title
+ *       - in: query
+ *         name: genre
+ *         schema: { type: string }
+ *         description: Filter by genre (e.g. Action)
+ *       - in: query
+ *         name: language
+ *         schema: { type: string }
+ *         description: Filter by language (e.g. English)
  *     responses:
  *       200:
  *         description: List of movies

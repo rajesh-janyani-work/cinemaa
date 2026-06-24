@@ -5,7 +5,7 @@ import { AppError } from "../../middlewares/error.middleware";
 import { Types } from "mongoose";
 
 // Layout -> flat seat list. 
-const generatSeats = (rows: number, seatsPerRow: number) => {
+const generateSeats = (rows: number, seatsPerRow: number) => {
     const seats: Seat[] = [];
     for (let r = 0; r < rows; r++){
         const rowLabel = String.fromCharCode(65 +r);
@@ -23,7 +23,7 @@ export const createShow = async (input: CreateShowInput) => {
         throw new AppError(404, "Movie not found");
     }
 
-    const seats = generatSeats(input.layout.rows, input.layout.seatsPerRow);
+    const seats = generateSeats(input.layout.rows, input.layout.seatsPerRow);
 
     const show = await Show.create({
         movieId: input.movieId,
@@ -38,16 +38,30 @@ export const createShow = async (input: CreateShowInput) => {
 
 }
 
-// List active shows, optionally filtered by movie
-export const getShows = async (movieId?: string) => {
-    const filter: Record<string, unknown> = { isActive: true};
+// List active shows, optionally filtered by movie and/or date
+export const getShows = async (movieId?: string, date?: string, page = 1, limit = 20) => {
+    const filter: Record<string, unknown> = { isActive: true };
 
-    if(movieId) {
-        filter.movieId = new Types.ObjectId(movieId)
+    if (movieId) {
+        filter.movieId = new Types.ObjectId(movieId);
     }
-    
-    const shows = await Show.find(filter).sort({ startTime: 1}).populate("movieId", "title");
-    return shows;
+
+    if (date) {
+        const start = new Date(date);
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(date);
+        end.setUTCHours(23, 59, 59, 999);
+        filter.startTime = { $gte: start, $lte: end };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [shows, total] = await Promise.all([
+        Show.find(filter).skip(skip).limit(limit).sort({ startTime: 1 }).populate("movieId", "title"),
+        Show.countDocuments(filter),
+    ]);
+
+    return { shows, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
 }
 
 

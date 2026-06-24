@@ -15,11 +15,13 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 export const getMyBookings = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const bookings = await BookingService.getMyBookings(req.userId!);
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const result = await BookingService.getMyBookings(req.userId!, page, limit);
     return res.status(200).json({
         status: "success",
         message: "Bookings retrieved successfully",
-        data: { bookings },
+        data: result,
     });
 });
 
@@ -41,11 +43,13 @@ export const cancelBooking = asyncHandler(async (req: AuthRequest, res: Response
     });
 });
 
-export const getAllBookings = asyncHandler(async (_req: AuthRequest, res: Response) => {
-    const bookings = await BookingService.getAllBookings();
+export const getAllBookings = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const result = await BookingService.getAllBookings(page, limit);
     return res.status(200).json({
         status: "success",
         message: "All bookings retrieved successfully",
-        data: { bookings },
+        data: result,
     });
 });

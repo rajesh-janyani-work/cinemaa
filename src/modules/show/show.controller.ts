@@ -17,11 +17,14 @@ export const createShow = asyncHandler(async (req: AuthRequest, res: Response) =
 export const getShows = asyncHandler(async (req: Request, res: Response) => {
   // req.query values are string | string[] | undefined — guard the type.
   const movieId = typeof req.query.movieId === "string" ? req.query.movieId : undefined;
-  const shows = await ShowService.getShows(movieId);
+  const date = typeof req.query.date === "string" ? req.query.date : undefined;
+  const page = req.query.page ? Number(req.query.page) : undefined;
+  const limit = req.query.limit ? Number(req.query.limit) : undefined;
+  const result = await ShowService.getShows(movieId, date, page, limit);
   return res.status(200).json({
     status: "success",
     message: "Shows retrieved successfully",
-    data: { shows },
+    data: result,
   });
 });
 

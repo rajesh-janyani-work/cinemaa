@@ -18,14 +18,17 @@ export const createMovie = asyncHandler(async (req: AuthRequest, res: Response) 
 })
 
 // Get all active movies controller
-export const getAllMovies = asyncHandler(async (_req: Request, res: Response) => {
-    const movies = await MovieService.getAllMovies();
+export const getAllMovies = asyncHandler(async (req: Request, res: Response) => {
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const genre = typeof req.query.genre === "string" ? req.query.genre : undefined;
+    const language = typeof req.query.language === "string" ? req.query.language : undefined;
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const result = await MovieService.getAllMovies({ search, genre, language, page, limit });
     return res.status(200).json({
         status: "success",
         message: "Movies retrieved successfully",
-        data: {
-            movies
-        }
+        data: result,
     });
 })
 

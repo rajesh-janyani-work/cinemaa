@@ -8,10 +8,38 @@ export const createMovie = async (input : CreateMovieInput) => {
     return movie;
 };
 
+export interface MovieFilters {
+    search?: string;
+    genre?: string;
+    language?: string;
+    page?: number;
+    limit?: number
+}
+
 // Get all active movies service
-export const getAllMovies = async () => {
-    const movies = await Movie.find({isActive: true});
-    return movies;
+export const getAllMovies = async (filters: MovieFilters = {}) => {
+    const query: Record<string, unknown> = { isActive: true };
+
+    if (filters.search) {
+        query.title = { $regex: filters.search, $options: "i" };
+    }
+    if (filters.genre) {
+        query.genre = { $in: [filters.genre] };
+    }
+    if (filters.language) {
+        query.language = { $regex: `^${filters.language}$`, $options: "i" };
+    }
+
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const [movies, total] = await Promise.all([
+        Movie.find(query).skip(skip).limit(limit),
+        Movie.countDocuments(query),
+    ])
+
+    return { movies, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
 }
 
 // Get a movie by ID service

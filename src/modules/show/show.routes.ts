@@ -14,6 +14,11 @@ const router = Router();
  *       - in: query
  *         name: movieId
  *         schema: { type: string }
+ *         description: Filter by movie ID
+ *       - in: query
+ *         name: date
+ *         schema: { type: string, format: date }
+ *         description: Filter by date (e.g. 2026-06-25)
  *     responses:
  *       200: { description: List of shows }
  */
