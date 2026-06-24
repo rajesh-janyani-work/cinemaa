@@ -166,3 +166,4 @@ npm run type-check   # TypeScript type check without emitting
 
 Available at `/api-docs` in development mode. Use the Authorize button (top right) to paste your Bearer token after logging in. The login response includes `accessToken` in the response body for easy copying.
 # cinemaa
+# cinemaa
