@@ -1,330 +1,168 @@
-# 🔐 Node.js MongoDB Authentication Starter
+# Cinemaa — Cinema Booking Backend API
 
-A production-ready, secure authentication system built with Node.js, Express, TypeScript, and MongoDB. Implements industry best practices for security and scalability.
+A RESTful backend API for a cinema ticket booking application built with Node.js, Express, TypeScript, and MongoDB.
 
-## ✨ Features
+## Tech Stack
 
-### 🛡️ Security First
-- **JWT Authentication** with access + refresh tokens
-- **HttpOnly Cookies** (NO localStorage)
-- **bcrypt** password hashing (12+ rounds)
-- **Token rotation** for enhanced security
-- **Account locking** after failed login attempts
-- **Rate limiting** (brute force protection)
-- **Helmet** for security headers
-- **CORS** properly configured
-- **Zod** for input validation
-- **Password strength enforcement**
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js |
+| Framework | Express.js v5 |
+| Language | TypeScript |
+| Database | MongoDB + Mongoose |
+| Validation | Zod |
+| Auth | JWT (access + refresh tokens) |
+| Docs | Swagger UI (OpenAPI 3.0) |
+| Security | Helmet, CORS, express-rate-limit, bcrypt |
+| Logging | Winston |
 
-### 🏗️ Architecture
-- Clean, modular folder structure
-- TypeScript for type safety
-- Centralized error handling
-- Async error handling wrapper
-- Environment-based configuration
-- Graceful shutdown handling
-
-### 📦 Tech Stack
-- **Runtime:** Node.js (LTS)
-- **Framework:** Express.js
-- **Language:** TypeScript
-- **Database:** MongoDB with Mongoose
-- **Validation:** Zod
-- **Authentication:** JWT + bcrypt
-- **Security:** Helmet, CORS, express-rate-limit
-
-## 📁 Project Structure
+## Project Structure
 
 ```
-backend/
-├── src/
-│   ├── app.ts                    # Express app setup
-│   ├── server.ts                 # Server entry point
-│   ├── config/
-│   │   ├── env.ts               # Environment configuration
-│   │   ├── db.ts                # Database connection
-│   │   └── cookie.ts            # Cookie settings
-│   ├── modules/
-│   │   └── auth/
-│   │       ├── auth.controller.ts
-│   │       ├── auth.routes.ts
-│   │       ├── auth.service.ts
-│   │       ├── auth.schema.ts
-│   │       └── auth.middleware.ts
-│   ├── models/
-│   │   └── user.model.ts        # User model with security features
-│   ├── middlewares/
-│   │   ├── error.middleware.ts  # Global error handler
-│   │   ├── rateLimit.middleware.ts
-│   │   └── auth.middleware.ts
-│   ├── utils/
-│   │   ├── jwt.ts              # JWT utilities
-│   │   ├── hash.ts             # Password hashing
-│   │   └── logger.ts           # Logging utility
-│   └── types/
-├── .env                         # Environment variables (DO NOT COMMIT)
-├── .env.example                 # Environment template
-├── .gitignore
-├── tsconfig.json
-└── package.json
+src/
+├── app.ts                        # Express app setup, routes, middleware
+├── server.ts                     # Entry point, DB connection, graceful shutdown
+├── config/
+│   ├── env.ts                    # Environment variable config (Zod-validated)
+│   ├── db.ts                     # MongoDB connection
+│   ├── cookie.ts                 # Cookie options (httpOnly, secure, sameSite)
+│   └── swagger.ts                # Swagger/OpenAPI config
+├── middlewares/
+│   ├── auth.middleware.ts        # authenticate + requireAdmin
+│   ├── error.middleware.ts       # Global error handler + AppError + asyncHandler
+│   ├── rateLimit.middleware.ts   # Rate limiting
+│   └── swagger.middleware.ts     # Swagger UI router
+├── models/
+│   ├── user.model.ts             # User schema (roles, refresh tokens, account locking)
+│   └── movie.model.ts            # Movie schema (soft delete via isActive)
+├── modules/
+│   ├── auth/
+│   │   ├── auth.controller.ts
+│   │   ├── auth.service.ts
+│   │   ├── auth.routes.ts
+│   │   └── auth.schema.ts        # Zod validation schemas
+│   └── movie/
+│       ├── movie.controller.ts
+│       ├── movie.service.ts
+│       ├── movie.routes.ts
+│       └── movie.schema.ts       # Zod validation schemas
+└── utils/
+    ├── jwt.ts                    # Sign + verify access/refresh tokens
+    ├── hash.ts                   # bcrypt password hashing
+    └── logger.ts                 # Winston logger
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-### 1. Install Dependencies
+### 1. Install dependencies
 
 ```bash
-cd backend
 npm install
 ```
 
-### 2. Set Up Environment
+### 2. Configure environment
 
-Copy `.env.example` to `.env` and update the values:
+Create a `.env` file in the root:
 
-```bash
-cp .env.example .env
+```env
+NODE_ENV=development
+PORT=4000
+MONGO_URI=mongodb://localhost:27017/cinemaa
+JWT_ACCESS_SECRET=your_access_secret_here
+JWT_REFRESH_SECRET=your_refresh_secret_here
+ACCESS_TOKEN_EXPIRES=15m
+REFRESH_TOKEN_EXPIRES=7d
+COOKIE_DOMAIN=localhost
 ```
 
-**Important:** Generate strong secrets for production:
+Generate strong secrets:
 
 ```bash
-# Generate random secrets (Node.js)
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### 3. Start MongoDB
+### 3. Run in development
 
-Make sure MongoDB is running locally or update `MONGO_URI` in `.env` with your MongoDB Atlas connection string.
-
-### 4. Run the Server
-
-**Development mode:**
 ```bash
 npm run dev
 ```
 
-**Production mode:**
+Server starts at `http://localhost:4000`
+Swagger UI at `http://localhost:4000/api-docs`
+
+### 4. Build for production
+
 ```bash
 npm run build
 npm start
 ```
 
-## 📚 API Endpoints
+## API Endpoints
 
-### Authentication Routes
+### Auth — `/api/auth`
 
-All auth routes are prefixed with `/api/auth`
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/register` | — | Register a new user |
+| POST | `/login` | — | Login, get access token + set cookies |
+| GET | `/me` | Bearer token | Get current user profile |
+| POST | `/refresh` | Cookie | Rotate refresh token, issue new access token |
+| POST | `/logout` | Cookie | Logout current device |
+| POST | `/logout-all` | Cookie | Logout all devices |
 
-#### Register
-```http
-POST /api/auth/register
-Content-Type: application/json
+### Movies — `/api/movies`
 
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!@#"
-}
-```
-
-**Password Requirements:**
-- Minimum 12 characters
-- At least one uppercase letter
-- At least one lowercase letter
-- At least one number
-- At least one special character
-
-#### Login
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!@#"
-}
-```
-
-**Response:**
-```json
-{
-  "status": "success",
-  "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": "user_id",
-      "email": "user@example.com"
-    }
-  }
-}
-```
-
-Refresh token is set as an HttpOnly cookie.
-
-#### Refresh Token
-```http
-POST /api/auth/refresh
-Cookie: refreshToken=<token>
-```
-
-#### Logout
-```http
-POST /api/auth/logout
-Authorization: Bearer <access_token>
-Cookie: refreshToken=<token>
-```
-
-#### Logout All Devices
-```http
-POST /api/auth/logout-all
-Authorization: Bearer <access_token>
-```
-
-#### Get Profile
-```http
-GET /api/auth/profile
-Authorization: Bearer <access_token>
-```
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/` | — | List all active movies |
+| GET | `/:id` | — | Get a single movie by ID |
+| POST | `/` | Admin only | Create a new movie |
+| PUT | `/:id` | Admin only | Update a movie (partial update) |
+| DELETE | `/:id` | Admin only | Soft delete a movie |
 
 ### Health Check
-```http
+
+```
 GET /health
 ```
 
-## 🔒 Security Features Explained
+## Security Features
 
-### 1. JWT Access + Refresh Tokens
-- **Access token:** Short-lived (15 minutes), sent in response body
-- **Refresh token:** Long-lived (7 days), stored in HttpOnly cookie
-- Prevents XSS attacks by not storing tokens in localStorage
+**JWT Tokens**
+- Access token: 15 minutes, returned in response body
+- Refresh token: 7 days, stored in httpOnly cookie only
+- Token rotation: each refresh issues a new refresh token and invalidates the old one
 
-### 2. Token Rotation
-- New refresh token generated on every refresh
-- Old token is invalidated
-- Prevents token reuse attacks
+**Account Protection**
+- Account locks after 5 failed login attempts (2-hour lockout)
+- Passwords hashed with bcrypt (12 rounds), never returned in responses
+- `select: false` on sensitive fields (password, refreshTokens)
 
-### 3. Account Locking
-- Locks account after 5 failed login attempts
-- Lock duration: 2 hours
-- Prevents brute force attacks
+**Request Security**
+- Rate limiting on all `/api` routes
+- Helmet sets secure HTTP headers
+- CORS configured per environment
+- All input validated with Zod before reaching service layer
 
-### 4. Rate Limiting
-- Auth endpoints: 5 requests per 15 minutes
-- General API: 100 requests per 15 minutes
-- Additional layer of brute force protection
+**Role-Based Access Control**
+- Roles: `USER` (default), `ADMIN`
+- `authenticate` middleware verifies the Bearer token and attaches `req.userId`
+- `requireAdmin` middleware always runs after `authenticate`, fetches user from DB, checks role
 
-### 5. Password Security
-- Hashed with bcrypt (12 rounds)
-- Never returned in API responses
-- Strong password requirements enforced
+## Soft Delete Pattern
 
-### 6. Input Validation
-- Zod schema validation
-- Email normalization (lowercase, trim)
-- Type-safe with TypeScript
+Movies are not removed from the database when deleted. Instead, `isActive` is set to `false`. The `getAllMovies` query filters to `{ isActive: true }` only. This preserves data integrity for future booking history.
 
-## 🛠️ Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Environment mode | `development` |
-| `PORT` | Server port | `4000` |
-| `MONGO_URI` | MongoDB connection string | Required |
-| `JWT_ACCESS_SECRET` | Secret for access tokens | Required |
-| `JWT_REFRESH_SECRET` | Secret for refresh tokens | Required |
-| `ACCESS_TOKEN_EXPIRES` | Access token expiration | `15m` |
-| `REFRESH_TOKEN_EXPIRES` | Refresh token expiration | `7d` |
-| `COOKIE_DOMAIN` | Cookie domain | `localhost` |
-
-### TypeScript Configuration
-
-The project uses strict TypeScript settings for maximum type safety:
-- Strict mode enabled
-- No unused locals/parameters
-- No implicit returns
-- No fallthrough cases
-
-## 📝 Scripts
+## Scripts
 
 ```bash
-npm run dev          # Run development server with hot reload
-npm run build        # Build for production
-npm start            # Run production server
-npm run type-check   # Check TypeScript types
+npm run dev          # Development with hot reload (tsx watch)
+npm run build        # Compile TypeScript to dist/
+npm start            # Run compiled production build
+npm run type-check   # TypeScript type check without emitting
 ```
 
-## 🧪 Testing Client Requests
+## Swagger UI
 
-### Using cURL
-
-**Register:**
-```bash
-curl -X POST http://localhost:4000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"SecurePass123!@#"}'
-```
-
-**Login:**
-```bash
-curl -X POST http://localhost:4000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"SecurePass123!@#"}' \
-  -c cookies.txt
-```
-
-**Get Profile:**
-```bash
-curl -X GET http://localhost:4000/api/auth/profile \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -b cookies.txt
-```
-
-## 🚦 Production Checklist
-
-Before deploying to production:
-
-- [ ] Change JWT secrets to strong random values
-- [ ] Update `MONGO_URI` to production database
-- [ ] Set `NODE_ENV=production`
-- [ ] Update CORS origin to production domain
-- [ ] Enable HTTPS (required for secure cookies)
-- [ ] Set up proper logging (e.g., Winston, Pino)
-- [ ] Configure MongoDB indexes
-- [ ] Set up monitoring and alerting
-- [ ] Enable automatic database backups
-- [ ] Review and adjust rate limits
-- [ ] Add request logging middleware
-- [ ] Set up CI/CD pipeline
-
-## 🎯 Next Steps
-
-This starter provides a solid foundation. Consider adding:
-
-- [ ] Email verification
-- [ ] Password reset functionality
-- [ ] OAuth integration (Google, GitHub, etc.)
-- [ ] Two-factor authentication (2FA)
-- [ ] Session management dashboard
-- [ ] User roles and permissions
-- [ ] API documentation (Swagger/OpenAPI)
-- [ ] Unit and integration tests
-- [ ] Docker containerization
-- [ ] Kubernetes deployment configs
-
-## 📖 Learn More
-
-- [Express.js Documentation](https://expressjs.com/)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-- [Mongoose Documentation](https://mongoosejs.com/)
-- [JWT Best Practices](https://tools.ietf.org/html/rfc8725)
-- [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
-
-## 📄 License
-
-MIT
-
----
-
-**Built with ❤️ for secure, production-ready authentication**
+Available at `/api-docs` in development mode. Use the Authorize button (top right) to paste your Bearer token after logging in. The login response includes `accessToken` in the response body for easy copying.
+# cinemaa
