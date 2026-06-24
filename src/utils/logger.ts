@@ -1,36 +1,29 @@
+import winston from "winston";
 import { env } from "../config/env";
 
-type LogLevel = "info" | "warn" | "error" | "debug";
+const { combine, timestamp, printf, colorize } = winston.format;
 
-class Logger {
-  private log(level: LogLevel, message: string, meta?: any) {
-    const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+// Define a custom log format
+const logFormat = printf(({ level, message, timestamp, ...meta }) => {
+  const metaString = Object.keys(meta).length ? JSON.stringify(meta) : "";
+  return `[${timestamp}] [${level}] ${message} ${metaString}`;
+});
 
-    if (meta) {
-      console[level](logMessage, meta);
-    } else {
-      console[level](logMessage);
-    }
-  }
+// Console transport – use colors in development
+const consoleTransport = new winston.transports.Console({
+  level: env.NODE_ENV === "development" ? "debug" : "info",
+  format: combine(colorize({ all: true }), timestamp(), logFormat),
+});
 
-  info(message: string, meta?: any) {
-    this.log("info", message, meta);
-  }
+// File transport – only in non‑development environments
+const fileTransport = new winston.transports.File({
+  filename: "logs/app.log",
+  level: "info",
+  format: combine(timestamp(), logFormat),
+});
 
-  warn(message: string, meta?: any) {
-    this.log("warn", message, meta);
-  }
-
-  error(message: string, meta?: any) {
-    this.log("error", message, meta);
-  }
-
-  debug(message: string, meta?: any) {
-    if (env.NODE_ENV === "development") {
-      this.log("debug", message, meta);
-    }
-  }
-}
-
-export const logger = new Logger();
+export const logger = winston.createLogger({
+  level: env.NODE_ENV === "development" ? "debug" : "info",
+  transports: env.NODE_ENV === "development" ? [consoleTransport] : [consoleTransport, fileTransport],
+  exitOnError: false,
+});

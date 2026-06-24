@@ -49,6 +49,14 @@ export const errorHandler = (
     });
   }
 
+  // Invalid Mongo ObjectId (e.g. GET /api/movies/not-an-id)
+  if (err.name === "CastError") {
+    return res.status(400).json({
+      status: "error",
+      message: "Invalid ID format",
+    });
+  }
+
   // JWT errors
   if (err.name === "JsonWebTokenError") {
     return res.status(401).json({
@@ -72,10 +80,11 @@ export const errorHandler = (
 };
 
 // Async handler wrapper to catch promise rejections
-export const asyncHandler = (
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
+
+export const asyncHandler = <T extends Request = Request>(
+  fn: (req: T, res: Response, next: NextFunction) => Promise<any>
 ) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: T, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };

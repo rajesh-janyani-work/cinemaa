@@ -3,79 +3,63 @@ import { hashPassword, comparePassword } from "../../utils/hash";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../utils/jwt";
 import { v4 as uuid } from "uuid";
 import { AppError } from "../../middlewares/error.middleware";
+import { LoginInput, RegisterInput } from "./auth.schema";
 
-/**
- * Register a new user
- */
-export const register = async (email: string, password: string) => {
-  // Check if user already exists
-  const existingUser = await User.findOne({ email });
+
+// Register a new user service
+export const register = async ({ username, email, password }: RegisterInput) => {
+  // check BOTH unique fields, not just email
+  const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+
   if (existingUser) {
-    throw new AppError(409, "User already exists");
+    throw new AppError(409, "User already exists!");
   }
 
-  // Hash password
   const hashedPassword = await hashPassword(password);
 
-  // Create user
-  const user = await User.create({
-    email,
-    password: hashedPassword,
-  });
+  const user = await User.create({ username, email, password: hashedPassword });
 
+  // return a curated safe object — never the raw document (it still holds the hash)
   return {
     id: user._id,
+    username: user.username,
     email: user.email,
     createdAt: user.createdAt,
   };
 };
 
-/**
- * Login user
- */
-export const login = async (email: string, password: string) => {
-  // Find user with password field
+// Login service
+export const login = async ({ email, password }: LoginInput) => {
+
   const user = await User.findOne({ email }).select("+password +refreshTokens");
-  
   if (!user) {
     throw new AppError(401, "Invalid credentials");
   }
 
-  // Check if account is locked
   if (user.isLocked()) {
     throw new AppError(
       403,
       "Account is locked due to too many failed login attempts. Please try again later."
-    );
+    )
   }
 
-  // Verify password
   const isPasswordValid = await comparePassword(password, user.password);
-  
+
   if (!isPasswordValid) {
-    // Increment failed login attempts
     await user.incrementLoginAttempts();
     throw new AppError(401, "Invalid credentials");
   }
 
-  // Reset login attempts on successful login
   await user.resetLoginAttempts();
 
-  // Generate tokens
   const tokenId = uuid();
   const accessToken = signAccessToken(user._id.toString());
   const refreshToken = signRefreshToken(tokenId, user._id.toString());
 
-  // Store refresh token (keep only last 5 tokens)
   user.refreshTokens.push({
     token: tokenId,
     createdAt: new Date(),
   });
-
-  // Keep only last 5 refresh tokens
-  if (user.refreshTokens.length > 5) {
-    user.refreshTokens = user.refreshTokens.slice(-5);
-  }
 
   await user.save();
 
@@ -84,46 +68,53 @@ export const login = async (email: string, password: string) => {
     refreshToken,
     user: {
       id: user._id,
+      username: user.username,
       email: user.email,
     },
+
   };
-};
+}
 
-/**
- * Refresh access token using refresh token
- */
-export const refreshAccessToken = async (refreshToken: string) => {
-  // Verify refresh token
+// get current user profile service
+export const getMe = async (userId: string) => {
+   const user = await User.findById(userId);
+   if(!user) {
+     throw new AppError(404, "User not found");
+   }
+   return {
+    id: user._id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    createdAt: user.createdAt,
+   }
+}
+
+// Refresh token service
+export const refresh = async (refreshToken: string) => {
   const decoded = verifyRefreshToken(refreshToken);
+  if(!decoded || !decoded.tid || !decoded.sub) {
+    throw new AppError(401, "Invalid refresh token");
+  }
 
-  // Find user with refresh tokens
   const user = await User.findById(decoded.sub).select("+refreshTokens");
-  
-  if (!user) {
+  if(!user) {
     throw new AppError(401, "Invalid refresh token");
   }
 
-  // Check if account is locked
-  if (user.isLocked()) {
-    throw new AppError(403, "Account is locked");
-  }
-
-  // Check if token exists in user's refresh tokens
-  const tokenExists = user.refreshTokens.some((t) => t.token === decoded.tid);
-  
-  if (!tokenExists) {
+  const tokenExists = user.refreshTokens.some(t => t.token === decoded.tid);
+  if(!tokenExists) {
     throw new AppError(401, "Invalid refresh token");
   }
 
-  // Remove old refresh token
-  user.refreshTokens = user.refreshTokens.filter((t) => t.token !== decoded.tid);
+  // remove the used refresh token (single-use)
+  user.refreshTokens = user.refreshTokens.filter(t => t.token !== decoded.tid);
 
-  // Generate new tokens (token rotation)
+  // generate new tokens
   const newTokenId = uuid();
   const newAccessToken = signAccessToken(user._id.toString());
   const newRefreshToken = signRefreshToken(newTokenId, user._id.toString());
 
-  // Store new refresh token
   user.refreshTokens.push({
     token: newTokenId,
     createdAt: new Date(),
@@ -134,35 +125,46 @@ export const refreshAccessToken = async (refreshToken: string) => {
   return {
     accessToken: newAccessToken,
     refreshToken: newRefreshToken,
-  };
-};
-
-/**
- * Logout user by removing refresh token
- */
-export const logout = async (userId: string, refreshToken: string) => {
-  try {
-    const decoded = verifyRefreshToken(refreshToken);
-    
-    const user = await User.findById(userId).select("+refreshTokens");
-    
-    if (!user) {
-      return;
-    }
-
-    // Remove the specific refresh token
-    user.refreshTokens = user.refreshTokens.filter((t) => t.token !== decoded.tid);
-    await user.save();
-  } catch (error) {
-    // Silent fail - token might be invalid or expired
   }
+}
+
+// logout service
+export const logout = async (refreshToken: string) => {
+  const decoded = verifyRefreshToken(refreshToken);
+  if(!decoded || !decoded.tid || !decoded.sub) {
+    throw new AppError(401, "Invalid refresh token");
+  }
+
+  const user = await User.findById(decoded.sub).select("+refreshTokens");
+  if(!user) {
+    throw new AppError(401, "Invalid refresh token");
+  }
+
+  const tokenExists = user.refreshTokens.some(t => t.token === decoded.tid);
+  if(!tokenExists) {
+    throw new AppError(401, "Invalid refresh token");
+  }
+
+  // remove the used refresh token (single-use)
+  user.refreshTokens = user.refreshTokens.filter(t => t.token !== decoded.tid);
+
+  await user.save();
+}
+
+
+// logout from all devices service
+export const logoutAll = async (refreshToken: string) => {
+  const decoded = verifyRefreshToken(refreshToken);
+  if (!decoded || !decoded.sub) {
+    throw new AppError(401, "Invalid refresh token");
+  }
+
+  const user = await User.findById(decoded.sub).select("+refreshTokens");
+  if (!user) {
+    throw new AppError(401, "Invalid refresh token");
+  }
+
+  user.refreshTokens = [];
+  await user.save();
 };
 
-/**
- * Logout from all devices by removing all refresh tokens
- */
-export const logoutAll = async (userId: string) => {
-  await User.findByIdAndUpdate(userId, {
-    $set: { refreshTokens: [] },
-  });
-};

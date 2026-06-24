@@ -1,12 +1,13 @@
 import mongoose from "mongoose";
 import { env } from "./env";
+import { logger } from "../utils/logger";
 
 export const connectDB = async () => {
   try {
     const conn = await mongoose.connect(env.MONGO_URI);
-    console.log(`✅ MongoDB connected: ${conn.connection.host}`);
+    logger.info(`✅ MongoDB connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
+    logger.error("❌ MongoDB connection error:", error);
     process.exit(1);
   }
 };
@@ -14,6 +15,7 @@ export const connectDB = async () => {
 // Graceful shutdown
 process.on("SIGINT", async () => {
   await mongoose.connection.close();
-  console.log("MongoDB connection closed");
+  logger.info("MongoDB connection closed");
   process.exit(0);
 });
+

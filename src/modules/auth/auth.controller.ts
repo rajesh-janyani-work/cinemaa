@@ -1,133 +1,100 @@
 import { Request, Response } from "express";
-import * as AuthService from "./auth.service";
-import { 
-  registerSchema, 
-  loginSchema, 
-  refreshTokenSchema 
-} from "./auth.schema";
-import { refreshTokenCookieOptions, cookieOptions } from "../../config/cookie";
-import { asyncHandler } from "../../middlewares/error.middleware";
 import { AuthRequest } from "../../middlewares/auth.middleware";
+import * as AuthService from "./auth.service";
+import {
+  loginSchema,
+  registerSchema,
+  refreshTokenSchema,
+} from "./auth.schema";
+import { asyncHandler } from "../../middlewares/error.middleware";
 
-/**
- * Register a new user
- */
+
+// register controller
 export const register = asyncHandler(async (req: Request, res: Response) => {
-  // Validate request body
-  const { email, password } = registerSchema.parse(req.body);
-
-  // Register user
-  const user = await AuthService.register(email, password);
-
+  const data = registerSchema.parse(req.body);
+  const user = await AuthService.register(data);
   res.status(201).json({
     status: "success",
     message: "User registered successfully",
-    data: { user },
-  });
+    data: {
+      user
+    }
+  })
 });
 
-/**
- * Login user
- */
+
+// login controller
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  // Validate request body
-  const { email, password } = loginSchema.parse(req.body);
+  const data = loginSchema.parse(req.body);
+  const result = await AuthService.login(data);
 
-  // Login user
-  const { accessToken, refreshToken, user } = await AuthService.login(email, password);
-
-  // Set refresh token in HTTP-only cookie
-  res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
-
-  res.status(200).json({
+  return res.status(200).json({
     status: "success",
-    message: "Login successful",
+    message: "User logged in successfully",
     data: {
-      accessToken,
+      user: result.user,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    },
+  });
+})
+
+
+// me controller
+export const me = asyncHandler(async (req: AuthRequest, res: Response) => {
+ 
+  const user = await AuthService.getMe(req.userId!);
+  return res.status(200).json({
+    status: "success",
+    message: "User retrieved successfully",
+    data: {
       user,
     },
   });
-});
+})
 
-/**
- * Refresh access token
- */
-export const refresh = asyncHandler(async (req: Request, res: Response) => {
-  // Get refresh token from cookie or body
-  const refreshToken = 
-    req.cookies.refreshToken || 
-    refreshTokenSchema.parse(req.body).refreshToken;
 
-  if (!refreshToken) {
-    return res.status(401).json({
-      status: "error",
-      message: "Refresh token required",
-    });
-  }
+// refresh token controller
+export const refresh = asyncHandler(async (req: Request, res: Response) =>{
+  const { refreshToken } = refreshTokenSchema.parse(req.body);
 
-  // Refresh tokens
-  const tokens = await AuthService.refreshAccessToken(refreshToken);
+  const result = await AuthService.refresh(refreshToken);
 
-  // Set new refresh token in cookie
-  res.cookie("refreshToken", tokens.refreshToken, refreshTokenCookieOptions);
-
-  res.status(200).json({
+  return res.status(200).json({
     status: "success",
+    message: "Token refreshed successfully",
     data: {
-      accessToken: tokens.accessToken,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     },
-  });
-});
+  })
+})
 
-/**
- * Logout user
- */
-export const logout = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const refreshToken = req.cookies.refreshToken;
-  const userId = req.userId;
 
-  if (refreshToken && userId) {
-    await AuthService.logout(userId, refreshToken);
-  }
+export const logout = asyncHandler(async (req: Request, res: Response) => {
+  const { refreshToken } = refreshTokenSchema.parse(req.body);
 
-  // Clear refresh token cookie
-  res.clearCookie("refreshToken", cookieOptions);
+  await AuthService.logout(refreshToken);
 
-  res.status(200).json({
+  return res.status(200).json({
     status: "success",
-    message: "Logout successful",
-  });
-});
+    message: "User logged out successfully",
+    data: null,
+  })
+})
 
-/**
- * Logout from all devices
- */
-export const logoutAll = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const userId = req.userId!;
+// logout all devices controller
+export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
+  const { refreshToken } = refreshTokenSchema.parse(req.body);
 
-  await AuthService.logoutAll(userId);
+  await AuthService.logoutAll(refreshToken);
 
-  // Clear refresh token cookie
-  res.clearCookie("refreshToken", cookieOptions);
-
-  res.status(200).json({
+  return res.status(200).json({
     status: "success",
     message: "Logged out from all devices",
+    data: null,
   });
 });
 
-/**
- * Get current user profile
- */
-export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const userId = req.userId!;
 
-  const user = await AuthService.register; // This should use a separate service method
-  // For now, return basic info
-  res.status(200).json({
-    status: "success",
-    data: {
-      userId,
-    },
-  });
-});
+

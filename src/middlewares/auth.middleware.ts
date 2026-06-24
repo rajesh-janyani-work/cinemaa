@@ -1,44 +1,40 @@
-import { Request, Response, NextFunction } from "express";
+import {Request, Response, NextFunction} from "express";
 import { verifyAccessToken } from "../utils/jwt";
 import { User } from "../models/user.model";
 import { AppError } from "./error.middleware";
-
 export interface AuthRequest extends Request {
   userId?: string;
 }
 
-/**
- * Middleware to verify JWT access token
- */
-export const authenticate = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const authenticate = async (req: AuthRequest, _res: Response, next: NextFunction) => {
   try {
-    // Check for token in Authorization header
+    // Bearer-only: all clients send the access token in the Authorization header.
+    // The token lives in client memory; no cookies are used.
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      throw new AppError(401, "No token provided");
+    const token =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.split(" ")[1]
+        : undefined;
+
+    if (!token) {
+      throw new AppError(401, "Unauthorized: No token provided");
     }
 
-    const token = authHeader.split(" ")[1];
-    
-    // Verify token
     const decoded = verifyAccessToken(token);
-    
-    // Check if user still exists
+
+    if (!decoded || !decoded.sub) {
+      throw new AppError(401, "Unauthorized: Invalid token");
+    }
+
     const user = await User.findById(decoded.sub);
     if (!user) {
-      throw new AppError(401, "User no longer exists");
+      throw new AppError(401, "Unauthorized: User not found");
     }
 
-    // Check if account is locked
-    if (user.isLocked()) {
-      throw new AppError(403, "Account is locked due to too many failed login attempts");
+    if(user.isLocked()) {
+      throw new AppError(403, "Unauthorized: User is blocked");
     }
 
-    // Attach user ID to request
     req.userId = decoded.sub;
     next();
   } catch (error) {
@@ -46,24 +42,21 @@ export const authenticate = async (
   }
 };
 
-/**
- * Optional authentication - doesn't fail if no token
- */
-export const optionalAuthenticate = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
-      const decoded = verifyAccessToken(token);
-      req.userId = decoded.sub;
+
+// Middleware to check if the user is an admin
+export const requireAdmin = async (req: AuthRequest, _res: Response, next: NextFunction) => {
+  try{
+    const user = await User.findById(req.userId);
+    if(!user) {
+      throw new AppError(401, "Unauthorized: User not found");
+    }
+
+    if(user.role !== "ADMIN") {
+      throw new AppError(403, "Forbidden: Admins only");
     }
     next();
-  } catch (error) {
-    // Continue without authentication
-    next();
   }
-};
+  catch(error) {
+    next(error);
+  }
+}

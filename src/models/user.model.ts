@@ -6,8 +6,10 @@ export interface IRefreshToken {
 }
 
 export interface IUser extends Document {
+  username: string;
   email: string;
   password: string;
+  role: "USER" | "ADMIN";
   refreshTokens: IRefreshToken[];
   loginAttempts: number;
   lockUntil?: Date;
@@ -37,18 +39,32 @@ const refreshTokenSchema = new Schema<IRefreshToken>(
 
 const userSchema = new Schema<IUser>(
   {
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      minLength: 3,
+      maxLength: 20
+    },
     email: {
       type: String,
       unique: true,
       lowercase: true,
       required: true,
       index: true,
-      trim: true,
+      trim: true
     },
     password: {
       type: String,
       required: true,
       select: false, // 🔥 Critical: Never return password by default
+    },
+    role: {
+      type: String,
+      enum: ["USER", "ADMIN"],
+      default: "USER",
     },
     refreshTokens: {
       type: [refreshTokenSchema],
@@ -63,7 +79,7 @@ const userSchema = new Schema<IUser>(
       type: Date,
     },
   },
-  { 
+  {
     timestamps: true,
   }
 );
