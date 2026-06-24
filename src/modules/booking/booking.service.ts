@@ -73,15 +73,15 @@ export const cancelBooking = async (bookingId: string, userId: string) => {
 }
 
 export const getMyBookings = async (userId: string) => {
-    return await Booking.find({ userId }).populate('showId').sort({ createdAt: -1 });
+    return await Booking.find({ userId }).populate('showId', '-seats').sort({ createdAt: -1 });
 }
 
 export const getAllBookings = async () => {
-    return Booking.find().populate("showId").populate("userId", "username email").sort({createdAt: -1})
-}
+    return Booking.find().populate("showId", "-seats").populate("userId", "username email").sort({ createdAt: -1 });
+};
 
 export const getBookingById = async (bookingId: string, userId: string) => {
-    const booking = await Booking.findById(bookingId).populate("showId");
+    const booking = await Booking.findById(bookingId).populate("showId", "-seats");
     if (!booking) throw new AppError(404, "Booking not found");
     if (booking.userId.toString() !== userId) throw new AppError(403, "Access denied");
     return booking;
